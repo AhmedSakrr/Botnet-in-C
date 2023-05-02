@@ -10,13 +10,13 @@ controller: controller.o
 controller.o: controller.c utils_v2.o header.h
 	$(CC) $(CCFLAGS) -c controller.c
 
-zombie : zombie.o
+zombie: zombie.o
 	$(CC) $(CCFLAGS) -o zombie zombie.o utils_v2.o
 
 zombie.o: zombie.c utils_v2.o header.h
 	$(CC) $(CCFLAGS) -c zombie.c 
 
-labo : labo.o
+labo: labo.o
 	$(CC) $(CCFLAGS) -o labo labo.o utils_v2.o 
 
 labo.o: labo.c utils_v2.o header.h 
@@ -24,7 +24,6 @@ labo.o: labo.c utils_v2.o header.h
 	
 utils_v2.o: utils_v2.c utils_v2.h
 	$(CC) $(CCFLAGS) -c utils_v2.c 
-
 
 
 ########## Cleaning ##########
