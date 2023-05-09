@@ -21,6 +21,12 @@ labo: labo.o
 
 labo.o: labo.c utils_v2.o header.h 
 	$(CC) $(CCFLAGS) -c labo.c 
+
+network : network.o
+	$(CC) $(CCFLAGS) -o network network.o utils_V2.o
+
+network.o: network.c utils_V2.o header.h
+	$(CC) $(CCFLAGS) -c network.c
 	
 utils_v2.o: utils_v2.c utils_v2.h
 	$(CC) $(CCFLAGS) -c utils_v2.c 
