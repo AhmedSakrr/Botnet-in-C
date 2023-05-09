@@ -1,4 +1,3 @@
-
 #include <string.h>
 #include <libgen.h>
 #include <fcntl.h>
@@ -10,72 +9,67 @@
 
 #include "utils_v2.h"
 
-#define BUFFER_SIZE 100
-#define SERVER_PORT 5000
+#define BUFFER_SIZE 1000
 
-char* server_ip;
-int server_port;
+int connectToServer(char* serverIP, int port) {
+
+    int sockfd;
+    sockfd = ssocket();
+    sconnect(serverIP, port, sockfd);
+    
+    printf("Connected to server %s on port %d\n", serverIP, port);
+    return sockfd;
+}
 
 int main(int argc, char** argv) {
 
-    if(argc != 3) {
-        printf("Argument invalide : ./client server_ip server_port\n");
-        exit(EXIT_FAILURE);
+    char* servers[] = {
+        "127.0.0.1",
+        // "192.168.0.100",
+        // "10.0.0.50"
+    };
+
+    int ports[] = {
+        5000, 
+        5001,
+        5002,
+    };
+
+    int portsLength   = sizeof(ports)    / sizeof(int);
+    int serversLength = sizeof(servers)  / sizeof(char*);
+
+    for (int i = 0; i < serversLength; i++) {
+        for(int j = 0; j < portsLength; j++) {
+            int sockfd = connectToServer(servers[i], ports[j]);
+            sclose(sockfd);
+        }
     }
 
-    server_ip = argv[1];
-    server_port = atoi(argv[2]);
+    //-----------------------------------------------------------------s
+
+    //int sockfd = initSocketClient(server_ip, SERVER_PORT);
+    //printf("Controlleur tourne sur le port : %i \n",server_port);
+
     char command[BUFFER_SIZE];
 
-    // Create socket
-    int sockfd = ssocket();
-
-    sconnect(server_ip, server_port, sockfd);
-	printf("Controlleur tourne sur le port : %i \n",server_port);
-
-    // Send characters to the server
-    printf("Entrez un entier:\n");
+    // // Send characters to the server
+    // printf("Entrez une commande :\n");
     while (1) {
         fgets(command, sizeof(command), stdin);
-
-        // Remove trailing newline character
         command[strcspn(command, "\n")] = 0;
 
-        // Send the message to the server
-        swrite(sockfd, &command, strlen(command));
+        //swrite(sockfd, &command, strlen(command));
+
+        // int s = sread(sockfd, &command, BUFFER_SIZE);
+
+        // swrite(1, &command, s);
     }
 
     // Close the socket
-    sclose(sockfd);
+    //sclose(sockfd);
+
+    //-----------------------------------------------------------------
+
 
     return 0;
 }
-
-
-
-// int main(int argc, char** argv){
-
-//     char command[BUFFER_SIZE];
-
-//     int sockfd = ssocket();
-// 	int option = 1;
-
-//     int newSockFd = sconnect("127.0.0.1", PORT, sockfd);
-
-//     while(1){
-
-//         sread(newsockfd, &value, sizeof(int));
-
-//         swrite(sockfd, &transaction, sizeof(transaction));
-
-//         printf("\n");
-//     }
-
-    
-
-//     sclose(sockfd);
-// }
-
-
-
-
