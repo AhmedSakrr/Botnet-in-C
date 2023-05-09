@@ -15,6 +15,7 @@
 
 #define BACKLOG 5
 #define BUFFER_SIZE 5000
+#define SERVER_PORT 5000
 
  
 char* executeCommand(char* cmd) {
