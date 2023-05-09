@@ -1,6 +1,6 @@
 CC=gcc
 CCFLAGS=-std=c11 -pedantic -Wall -Wvla -Werror -D_POSIX_C_SOURCE -D_DEFAULT_SOURCE
-ALL=controller zombie labo
+ALL=controller zombie labo network
 
 all: $(ALL)
 
@@ -32,9 +32,9 @@ utils_v2.o: utils_v2.c utils_v2.h
 	$(CC) $(CCFLAGS) -c utils_v2.c 
 
 
-########## Cleaning ##########
+########## Cleaning - ipcrm -a ##########
 
 clean:
 	rm -f *.o
 	rm -f $(ALL)
-	ipcrm -a
+	

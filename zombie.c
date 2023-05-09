@@ -5,11 +5,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <unistd.h>
 
 #include "utils_v2.h"
 
 #define MAX_SOCKET_SIMULTANEOUS 10
 #define PORT 5000
+#define BUFFER_SIZE 100
 
 
 int main(int argc, char** argv){
@@ -25,18 +27,18 @@ int main(int argc, char** argv){
 
 	printf("Zombie tourne sur le port : %i \n",server_port);
 
-	int value;
-	int newsockfd;
+	char command[BUFFER_SIZE];
+
+	/* Ecoute un client */
+	int newsockfd = saccept(sockfd);
 
 	while(1){
-		/* Ecoute un client */
-		newsockfd = saccept(sockfd);
-
+		
 		/* Lit la valeur du client */
-		sread(newsockfd, &value, sizeof(int));
-
+		sread(newsockfd, &command, sizeof(int));
+		
 	    /* Ecris la valeur du client */
-	    swrite(newsockfd, &value, sizeof(double));
+	    swrite(1, &command, strlen(command));
 	}
 	
 	/* Ferme la connection client */
