@@ -5,7 +5,7 @@ ALL=controller zombie labo
 all: $(ALL)
 
 controller: controller.o
-	$(CC) $(CCFLAGS) -o controller controller.o utils_V2.o
+	$(CC) $(CCFLAGS) -o controller controller.o utils_v2.o
 
 controller.o: controller.c utils_v2.o header.h
 	$(CC) $(CCFLAGS) -c controller.c
@@ -31,4 +31,3 @@ utils_v2.o: utils_v2.c utils_v2.h
 clean:
 	rm -f *.o
 	rm -f $(ALL)
-	ipcrm -a
