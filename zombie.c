@@ -60,16 +60,21 @@ int initSocketServer(int serverPort)
 int main(int argc, char** argv){
 
 	int sockfd;
+	int port;
 
 	if (argc > 1)
 	{
 		int port = atoi(argv[1]);
 		sockfd = initSocketServer(port);
 		printf("Le serveur tourne sur le port : %i\n", port);
-	}else
-	{
-		sockfd = initSocketServer(SERVER_PORT);
-		printf("Le serveur tourne sur le port : %i\n", SERVER_PORT);
+	}
+	else {
+		// Select a random port from the list of available ports
+		srand(time(NULL));
+		int index = rand() % NUM_PORTS;
+		port = PORTS[index];
+		sockfd = initSocketServer(port);
+		printf("Le serveur tourne sur le port : %i\n", port);
 	}	
 	
 	char* command;
