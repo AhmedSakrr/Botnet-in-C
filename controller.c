@@ -10,7 +10,7 @@
 #include "utils_v2.h"
 #include "header.h"
 
-#define BUFFER_SIZE 1000
+#define BUFFER_SIZE 5000
 
 int connectToZombies(char* serverIP, int serverPort) {
 
@@ -26,11 +26,8 @@ int connectToZombies(char* serverIP, int serverPort) {
     }
 }
 
-void communicateWithZombie(){
-    printf("communicate\n");
-}
 
-void listenToTheZombies(){
+void listenToTheZombies(void* array, void* lSize) {
     printf("listen\n");
 }
 
@@ -39,7 +36,8 @@ int main(int argc, char** argv) {
 
     int* array = NULL; 
     int lSize = 0;  
-    int pSize = 0;  
+    int pSize = 0; 
+    char command[BUFFER_SIZE];
 
     //malloc ?
 
@@ -79,32 +77,26 @@ int main(int argc, char** argv) {
     }
     printf("\n");
 
-    free(array);
+    // return childId
+    fork_and_run2(listenToTheZombies, &array, &lSize);
 
-    //int childId = fork_and_run2(listenToTheZombies, &array)
+    /* Programme père */
 
+    
+    // Send characters to the server
+    printf("Entrez une commande :\n");
+    while (1) {
+        fgets(command, BUFFER_SIZE, stdin);
+        command[strcspn(command, "\n")] = 0;
+
+        for(int i = 0 ; i < lSize ; i++){
+            swrite(array[i], &command, strlen(command));
+        }
+    }
+
+    free(array);    
     return 0;
     
 
-    //-----------------------------------------------------------------s
-
-    // char command[BUFFER_SIZE];
-
-    // // Send characters to the server
-    // printf("Entrez une commande :\n");
-    // while (1) {
-    //     fgets(command, sizeof(command), stdin);
-    //     command[strcspn(command, "\n")] = 0;
-
-    //     swrite(sockfd, &command, strlen(command));
-
-    //     int s = sread(sockfd, &command, BUFFER_SIZE);
-
-    //     swrite(1, &command, s);
-    // }
-
-    // Close the socket
-    //sclose(sockfd);
-
-    //-----------------------------------------------------------------
+    /* Close tout les sockfd !*/
 }
