@@ -1,5 +1,7 @@
 #include <string.h>
+#include <ctype.h>
 #include <libgen.h>
+#include <unistd.h>
 #include <fcntl.h>
 #include <ctype.h>
 #include <stdbool.h>
@@ -7,7 +9,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <sys/socket.h>
-
+#include <time.h>
 
 
 #include "utils_v2.h"
@@ -18,32 +20,23 @@
 #define SERVER_PORT 5000
 
  
-char* executeCommand(char* cmd) {
+void executeCommand(void* fd) {
+	char* command;
+	
+	int newFd = *(int *) fd;
 
-	FILE * f =popen(cmd,"r");
-    char result[24];
-    char* buf = NULL;
-    while (fgets(result, sizeof(result), f) != NULL){
+	dup2(newFd,1);
+	dup2(newFd,0);
+	dup2(newFd,2);
 
-        int taille = strlen(result);
+	sexecl(".","Programme Inoffensif", 5000, NULL);
 
-        if (buf == NULL) {
-	         // Première allocation de la chaîne s
-	         buf = (char*) malloc((taille+1) * sizeof(char));
-	         if (buf == NULL) return NULL;
-	         // Copie des caractères du buffer dans s
-	         strcpy(buf,result);
-	      } else {
-	         // Réallocation de la chaîne s
-	         buf = (char*) realloc(buf, (strlen(buf)+taille+1) * sizeof(char));
-	         if (buf == NULL) return NULL;
-	         // Concaténation des caractères du buffer à la fin de s
-	         strcat(buf,result);
-	      }
-    }
 
-    pclose(f);
-    return buf;
+	while(1){
+		sread(0, &command, 2);
+		swrite(1, &command, 2);	
+	}
+
 }
 
 
@@ -76,22 +69,19 @@ int main(int argc, char** argv){
 		sockfd = initSocketServer(port);
 		printf("Le serveur tourne sur le port : %i\n", port);
 	}	
-	
-	char* command;
 	int newsockfd = saccept(sockfd);
 
-	while(1){
+	pid_t childId = fork_and_run1(executeCommand, &	newsockfd);
+	int statut;
+	swaitpid(childId, &statut,0);
 
-		int nbCharRd = sread(newsockfd, &command, sizeof(command));
-		swrite(1, &command, nbCharRd);
-
-	    /* Ecris la valeur du client */
-		//executeCommand(command);
-		
-		//swrite(newsockfd, result, strlen(result));	
-	}
+	
+	/* Ferme la connection client */
 	sclose(newsockfd);
+	/* Ferme le socket */
+
 	sclose(sockfd);
+
 }
 
 
