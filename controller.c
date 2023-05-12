@@ -33,25 +33,26 @@ void listenToTheZombies(void* ptrArray, void* logicalSize) {
     int lSize = *(int*) logicalSize;
     char msg[BUFFER_SIZE];
 
-
     /* 1024 server connection MAX*/
     struct pollfd fds[1024];
     bool fds_invalid[1024];
     int nbSockfd = 0;
     
     for (int i = 0; i < lSize; i++) {
-        printf("%d ", array[i]);
+        printf("%d \n", array[i]);
+
         fds[nbSockfd].fd = array[i];
         fds[nbSockfd].events = POLLIN;
+
+        printf("%d \n", fds[nbSockfd].fd);
         nbSockfd++;
         fds_invalid[nbSockfd] = false;
     }
-    printf("\n");
 
     while(1){
         spoll(fds, nbSockfd, 0);
         
-        for(int i = 1 ; i < nbSockfd ; i++){
+        for(int i = 0 ; i < nbSockfd ; i++){
             if(fds[i].revents & POLLIN & !fds_invalid[i]){
                 sread(fds[i].fd, msg, sizeof(msg));
 
@@ -59,10 +60,6 @@ void listenToTheZombies(void* ptrArray, void* logicalSize) {
             }
         }
     }
-
-
-
-    //printf("I'm listening zombies.\n");
 }
 
 
@@ -110,19 +107,16 @@ int main(int argc, char** argv) {
     fork_and_run2(listenToTheZombies, array, &lSize);
 
     /* Programme père */
-    
+    printf("Entrez une commande :\n");
     while (1) {
-        printf("Entrez une commande :\n");
         fgets(command, BUFFER_SIZE, stdin);
-        command[strcspn(command, "\n")] = 0;
+        //command[strcspn(command, "\n")] = 0;
 
         for(int i = 0 ; i < lSize ; i++){
             swrite(array[i], &command, strlen(command));
         }
     }
     
-
-
     free(array);    
     return 0;
 
