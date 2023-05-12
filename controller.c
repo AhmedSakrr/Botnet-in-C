@@ -9,6 +9,7 @@
 
 #include "utils_v2.h"
 #include "header.h"
+#include "network.h"
 
 #define BUFFER_SIZE 5000
 
@@ -17,7 +18,7 @@ int connectToZombies(char* serverIP, int serverPort) {
     int sockfd;
     sockfd = ssocket();
 
-    if(sconnect(serverIP, serverPort, sockfd) != -1){
+    if(ssconnect(serverIP, serverPort, sockfd) != -1){
          printf("Connected to server %s on port %d\n", serverIP, serverPort);
          return sockfd;
     } else {
