@@ -12,6 +12,8 @@
 #include "network.h"
 
 #define BUFFER_SIZE 5000
+#define MAX_ARGUMENTS 100
+#define MAX_LENGTH 100
 
 int connectToZombies(char* serverIP, int serverPort) {
 
@@ -39,12 +41,8 @@ void listenToTheZombies(void* ptrArray, void* logicalSize) {
     int nbSockfd = 0;
     
     for (int i = 0; i < lSize; i++) {
-        printf("%d \n", array[i]);
-
         fds[nbSockfd].fd = array[i];
         fds[nbSockfd].events = POLLIN;
-
-        printf("%d \n", fds[nbSockfd].fd);
         nbSockfd++;
         fds_invalid[nbSockfd] = false;
     }
@@ -70,17 +68,21 @@ int main(int argc, char** argv) {
     int pSize = 0; 
     char command[BUFFER_SIZE];
 
+    if (argc < 2) {
+        printf("Usage: ./controller argument1 argument2 ... argumentN\n");
+        return 1;
+    }
+
+    char servers[MAX_ARGUMENTS][MAX_LENGTH];
+
+    for (int i = 1; i < argc; i++) {
+        strncpy(servers[i - 1], argv[i], MAX_LENGTH - 1);
+        servers[i - 1][MAX_LENGTH - 1] = '\0';
+    }
 
     //malloc ?
 
-    char* servers[] = {
-        "127.0.0.1",
-    };
-
-    int serversLength = sizeof(servers) / sizeof(char*);
-
-    /* Connect to all the zombies and store their fd in an array*/
-    for (int i = 0; i < serversLength; i++) {
+    for (int i = 0; i < argc - 1; i++) {
         for(int j = 0; j < NUM_PORTS; j++) {
 
             int sockfd = connectToZombies(servers[i], PORTS[j]);
