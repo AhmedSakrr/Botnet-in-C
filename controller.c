@@ -12,8 +12,9 @@
 #include "network.h"
 
 #define BUFFER_SIZE 5000
-#define MAX_ARGUMENTS 100
-#define MAX_LENGTH 100
+#define MAX_ARGUMENTS 20
+#define MAX_LENGTH 16
+#define PHYSICAL_SIZE 10
 
 
 volatile sig_atomic_t signalCount = 0;
@@ -23,7 +24,103 @@ pid_t childPid;
 
 void handleSIGINT(int signal) {
     signalCount = 1;
+    kill(childPid, SIGINT);  
+    exit(0);
 }
+
+int connectToZombies(char* serverIP, int serverPort);
+
+void listenToTheZombies(void* ptrArray, void* logicalSize);
+
+int main(int argc, char** argv) {
+
+    if (argc < 2) {
+        printf("Usage: ./controller ip1 ip2 ... ipN\n");
+        return 1;
+    }
+
+    /* Array of file descriptor*/
+    int* arrayFd = NULL; 
+    int logicalSize = 0;  
+    int physicalSize = PHYSICAL_SIZE;
+
+    char command[BUFFER_SIZE];
+    char servers[MAX_ARGUMENTS][MAX_LENGTH];
+    int nbServers = argc - 1;
+    
+    arrayFd = (int*)smalloc(PHYSICAL_SIZE * sizeof(int));
+
+    /* Copy args in an array */
+    for (int i = 1; i < nbServers + 1; i++) {
+        strncpy(servers[i - 1], argv[i], MAX_LENGTH - 1);
+        servers[i - 1][MAX_LENGTH - 1] = '\0';
+    }
+
+    /* Connect to all the zombies and store their file descriptor in the array */
+    for (int i = 0; i < nbServers; i++) {
+        for(int j = 0; j < NUM_PORTS; j++) {
+
+            int sockfd = connectToZombies(servers[i], PORTS[j]);
+
+            /* Check if the connection succeed */
+            if(sockfd != 0){
+                
+                /* Realloc the memory if it's necessary */
+                if (logicalSize >= physicalSize) {
+                    physicalSize += PHYSICAL_SIZE; 
+                    int* newArray = (int*)realloc(arrayFd, physicalSize * sizeof(int));
+                    if (newArray == NULL) {
+                        printf("Error realloc.\n");
+                        free(arrayFd);
+                        return 0;
+                    }
+                    arrayFd = newArray;
+                }
+
+                /* Add file descriptor to the array */
+                arrayFd[logicalSize] = sockfd;
+                logicalSize++;
+            }        
+        }
+    }
+    if(logicalSize == 0){
+        printf("No connection established \n");
+        return 0;
+    }
+    printf("Number of connection established : %d\n", logicalSize);
+
+    ssigaction(SIGINT, handleSIGINT);
+
+    childPid = fork_and_run2(listenToTheZombies, arrayFd, &logicalSize);
+
+    /* PROGRAMME PERE */
+   if (childPid > 0) {
+        printf("Enter a command :\n");
+        while (!signalCount) {
+            if (fgets(command, BUFFER_SIZE, stdin) == NULL) {
+        
+                printf("CTRL-D...\n");
+                signalCount = 1; 
+                break;
+            }
+
+            for(int i = 0 ; i < logicalSize ; i++){
+                swrite(arrayFd[i], &command, strlen(command));
+            }
+        }
+        kill(childPid, SIGINT); 
+    }
+
+    /* Free allocated memory */
+    free(arrayFd);
+
+    /* Close all sockets */  
+    for(int i = 0 ; i < logicalSize ; i++){
+        sclose(arrayFd[i]);
+    }
+    return 0;
+}
+
 
 int connectToZombies(char* serverIP, int serverPort) {
 
@@ -34,40 +131,47 @@ int connectToZombies(char* serverIP, int serverPort) {
          printf("Connected to server %s on port %d\n", serverIP, serverPort);
          return sockfd;
     } else {
-        // Echec de la connexion au serveur
+        /* Error connection server */
         return 0;
     }
 }
 
-
+/* PROGRAMME FILS */
 void listenToTheZombies(void* ptrArray, void* logicalSize) {
-    int* array = ptrArray;
+
+    int* arrayFd = ptrArray;
     int lSize = *(int*) logicalSize;
     char msg[BUFFER_SIZE];
 
-    /* 1024 server connection MAX*/
     struct pollfd fds[1024];
     bool fds_invalid[1024];
     int nbSockfd = 0;
 
-    for (int i = 0; i < lSize; i++) {
-        fds[nbSockfd].fd = array[i];
-        fds[nbSockfd].events = POLLIN;
-        nbSockfd++;
-        fds_invalid[nbSockfd] = false;
+    int s = 0;
+    while(s<2){
+        for (int i = 0; i < lSize; i++) {
+            fds[nbSockfd].fd = arrayFd[i];
+            fds[nbSockfd].events = POLLIN;
+            nbSockfd++;
+            fds_invalid[nbSockfd] = false;
+        }
+        s++;
     }
+
 
     while (!signalCount) {
         spoll(fds, nbSockfd, 0);
 
         for (int i = 0; i < nbSockfd; i++) {
             if (fds[i].revents & POLLIN && !fds_invalid[i]) {
-                int bytesRead = sread(fds[i].fd, msg, sizeof(msg));
-                if (bytesRead <= 0) {
+
+                int nbCharRead = sread(fds[i].fd, msg, sizeof(msg));
+                if (nbCharRead <= 0) {
                     fds_invalid[i] = true;
                     continue;
                 }
-                printf("Message recu:\n%s\n", msg);
+                printf("\n%s\n", msg);
+                memset(msg, 0, sizeof(msg));
             }
         }
     }
@@ -77,79 +181,4 @@ void listenToTheZombies(void* ptrArray, void* logicalSize) {
             sclose(fds[i].fd);
         }
     }
-}
-
-
-int main(int argc, char** argv) {
-
-    int* array = NULL; 
-    int lSize = 0;  
-    int pSize = 0; 
-    char command[BUFFER_SIZE];
-
-    if (argc < 2) {
-        printf("Usage: ./controller argument1 argument2 ... argumentN\n");
-        return 1;
-    }
-
-    char servers[MAX_ARGUMENTS][MAX_LENGTH];
-
-    for (int i = 1; i < argc; i++) {
-        strncpy(servers[i - 1], argv[i], MAX_LENGTH - 1);
-        servers[i - 1][MAX_LENGTH - 1] = '\0';
-    }
-
-    //malloc ?
-
-    for (int i = 0; i < argc - 1; i++) {
-        for(int j = 0; j < NUM_PORTS; j++) {
-
-            int sockfd = connectToZombies(servers[i], PORTS[j]);
-            if(sockfd != 0){
-                if (lSize >= pSize) {
-                
-                    pSize += 10; 
-                    int* newArray = (int*)realloc(array, pSize * sizeof(int));
-                    if (newArray == NULL) {
-                        printf("Error realloc.\n");
-                        free(array);
-                        return 0;
-                    }
-                    array = newArray;
-                }
-                array[lSize] = sockfd;
-                lSize++;
-            }        
-        }
-    }
-    printf("Number of connection established : %d\n", lSize);
-
-    signal(SIGINT, handleSIGINT);
-
-    childPid = fork_and_run2(listenToTheZombies, array, &lSize);
-
-    if (childPid > 0) {
-    /* Programme père */
-    printf("Entrez une commande :\n");
-    while (!signalCount) {
-        if (fgets(command, BUFFER_SIZE, stdin) == NULL) {
-    
-            printf("CTRL-D...\n");
-            signalCount = 1; 
-            break;
-        }
-        //command[strcspn(command, "\n")] = 0;
-
-        for(int i = 0 ; i < lSize ; i++){
-            swrite(array[i], &command, strlen(command));
-        }
-    }
-    kill(childPid, SIGINT); 
-    
-    }
-
-    free(array);    
-    return 0;
-
-    /* Close tout les sockfd !*/
 }
