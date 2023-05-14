@@ -109,7 +109,7 @@
 #define BUFFER_SIZE 5000
 #define SERVER_PORT 5000
 
-pid_t childId; // Declare childId as a global variable
+pid_t childId; 
 
 void executeCommand(void* fd) {
     
@@ -123,7 +123,8 @@ void executeCommand(void* fd) {
 }
 
 void handleSIGINT(int signal) {
-    printf("Ctrl+C pressed.\n Terminating...\n");
+    printf("Ctrl+C pressed.\n ");
+    kill(0, SIGINT);
     exit(0);
 }
 
@@ -140,7 +141,7 @@ int main(int argc, char** argv) {
     int sockfd;
     int port;
 
-    signal(SIGINT, handleSIGINT);  // Register signal handler for Ctrl+C
+    signal(SIGINT, handleSIGINT);  
 
     if (argc > 1) {
         int port = atoi(argv[1]);

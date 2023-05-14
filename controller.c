@@ -15,6 +15,16 @@
 #define MAX_ARGUMENTS 100
 #define MAX_LENGTH 100
 
+
+volatile sig_atomic_t signalCount = 0;
+
+pid_t childPid;
+
+
+void handleSIGINT(int signal) {
+    signalCount = 1;
+}
+
 int connectToZombies(char* serverIP, int serverPort) {
 
     int sockfd;
@@ -39,7 +49,7 @@ void listenToTheZombies(void* ptrArray, void* logicalSize) {
     struct pollfd fds[1024];
     bool fds_invalid[1024];
     int nbSockfd = 0;
-    
+
     for (int i = 0; i < lSize; i++) {
         fds[nbSockfd].fd = array[i];
         fds[nbSockfd].events = POLLIN;
@@ -47,15 +57,24 @@ void listenToTheZombies(void* ptrArray, void* logicalSize) {
         fds_invalid[nbSockfd] = false;
     }
 
-    while(1){
+    while (!signalCount) {
         spoll(fds, nbSockfd, 0);
-        
-        for(int i = 0 ; i < nbSockfd ; i++){
-            if(fds[i].revents & POLLIN & !fds_invalid[i]){
-                sread(fds[i].fd, msg, sizeof(msg));
 
-                printf("Message recu : \n %s", msg);
+        for (int i = 0; i < nbSockfd; i++) {
+            if (fds[i].revents & POLLIN && !fds_invalid[i]) {
+                int bytesRead = sread(fds[i].fd, msg, sizeof(msg));
+                if (bytesRead <= 0) {
+                    fds_invalid[i] = true;
+                    continue;
+                }
+                printf("Message recu:\n%s\n", msg);
             }
+        }
+    }
+
+    for (int i = 0; i < nbSockfd; i++) {
+        if (!fds_invalid[i]) {
+            sclose(fds[i].fd);
         }
     }
 }
@@ -105,20 +124,30 @@ int main(int argc, char** argv) {
     }
     printf("Number of connection established : %d\n", lSize);
 
-    // return childId
-    fork_and_run2(listenToTheZombies, array, &lSize);
+    signal(SIGINT, handleSIGINT);
 
+    childPid = fork_and_run2(listenToTheZombies, array, &lSize);
+
+    if (childPid > 0) {
     /* Programme père */
     printf("Entrez une commande :\n");
-    while (1) {
-        fgets(command, BUFFER_SIZE, stdin);
+    while (!signalCount) {
+        if (fgets(command, BUFFER_SIZE, stdin) == NULL) {
+    
+            printf("CTRL-D...\n");
+            signalCount = 1; 
+            break;
+        }
         //command[strcspn(command, "\n")] = 0;
 
         for(int i = 0 ; i < lSize ; i++){
             swrite(array[i], &command, strlen(command));
         }
     }
+    kill(childPid, SIGINT); 
     
+    }
+
     free(array);    
     return 0;
 
