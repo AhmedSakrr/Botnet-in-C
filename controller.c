@@ -9,15 +9,18 @@
 
 #include "utils_v2.h"
 #include "header.h"
+#include "network.h"
 
-#define BUFFER_SIZE 1000
+#define BUFFER_SIZE 5000
+#define MAX_ARGUMENTS 100
+#define MAX_LENGTH 100
 
 int connectToZombies(char* serverIP, int serverPort) {
 
     int sockfd;
     sockfd = ssocket();
 
-    if(sconnect(serverIP, serverPort, sockfd) != -1){
+    if(ssconnect(serverIP, serverPort, sockfd) != -1){
          printf("Connected to server %s on port %d\n", serverIP, serverPort);
          return sockfd;
     } else {
@@ -26,12 +29,35 @@ int connectToZombies(char* serverIP, int serverPort) {
     }
 }
 
-void communicateWithZombie(){
-    printf("communicate\n");
-}
 
-void listenToTheZombies(){
-    printf("listen\n");
+void listenToTheZombies(void* ptrArray, void* logicalSize) {
+    int* array = ptrArray;
+    int lSize = *(int*) logicalSize;
+    char msg[BUFFER_SIZE];
+
+    /* 1024 server connection MAX*/
+    struct pollfd fds[1024];
+    bool fds_invalid[1024];
+    int nbSockfd = 0;
+    
+    for (int i = 0; i < lSize; i++) {
+        fds[nbSockfd].fd = array[i];
+        fds[nbSockfd].events = POLLIN;
+        nbSockfd++;
+        fds_invalid[nbSockfd] = false;
+    }
+
+    while(1){
+        spoll(fds, nbSockfd, 0);
+        
+        for(int i = 0 ; i < nbSockfd ; i++){
+            if(fds[i].revents & POLLIN & !fds_invalid[i]){
+                sread(fds[i].fd, msg, sizeof(msg));
+
+                printf("Message recu : \n %s", msg);
+            }
+        }
+    }
 }
 
 
@@ -39,18 +65,24 @@ int main(int argc, char** argv) {
 
     int* array = NULL; 
     int lSize = 0;  
-    int pSize = 0;  
+    int pSize = 0; 
+    char command[BUFFER_SIZE];
+
+    if (argc < 2) {
+        printf("Usage: ./controller argument1 argument2 ... argumentN\n");
+        return 1;
+    }
+
+    char servers[MAX_ARGUMENTS][MAX_LENGTH];
+
+    for (int i = 1; i < argc; i++) {
+        strncpy(servers[i - 1], argv[i], MAX_LENGTH - 1);
+        servers[i - 1][MAX_LENGTH - 1] = '\0';
+    }
 
     //malloc ?
 
-    char* servers[] = {
-        "127.0.0.1",
-    };
-
-    int serversLength = sizeof(servers) / sizeof(char*);
-
-    /* Connect to all the zombies and store their fd in an array*/
-    for (int i = 0; i < serversLength; i++) {
+    for (int i = 0; i < argc - 1; i++) {
         for(int j = 0; j < NUM_PORTS; j++) {
 
             int sockfd = connectToZombies(servers[i], PORTS[j]);
@@ -73,38 +105,22 @@ int main(int argc, char** argv) {
     }
     printf("Number of connection established : %d\n", lSize);
 
-    printf("\nLes entiers saisis sont :\n");
-    for (int i = 0; i < lSize; i++) {
-        printf("%d ", array[i]);
+    // return childId
+    fork_and_run2(listenToTheZombies, array, &lSize);
+
+    /* Programme père */
+    printf("Entrez une commande :\n");
+    while (1) {
+        fgets(command, BUFFER_SIZE, stdin);
+        //command[strcspn(command, "\n")] = 0;
+
+        for(int i = 0 ; i < lSize ; i++){
+            swrite(array[i], &command, strlen(command));
+        }
     }
-    printf("\n");
-
-    free(array);
-
-    //int childId = fork_and_run2(listenToTheZombies, &array)
-
-    return 0;
     
+    free(array);    
+    return 0;
 
-    //-----------------------------------------------------------------s
-
-    // char command[BUFFER_SIZE];
-
-    // // Send characters to the server
-    // printf("Entrez une commande :\n");
-    // while (1) {
-    //     fgets(command, sizeof(command), stdin);
-    //     command[strcspn(command, "\n")] = 0;
-
-    //     swrite(sockfd, &command, strlen(command));
-
-    //     int s = sread(sockfd, &command, BUFFER_SIZE);
-
-    //     swrite(1, &command, s);
-    // }
-
-    // Close the socket
-    //sclose(sockfd);
-
-    //-----------------------------------------------------------------
+    /* Close tout les sockfd !*/
 }

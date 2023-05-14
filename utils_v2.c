@@ -511,7 +511,7 @@ int sconnect(char *serverIP,int serverPort, int sockfd ){
   addr.sin_port = htons(serverPort);
   inet_aton(serverIP,&addr.sin_addr);
   int ret = connect(sockfd, (struct sockaddr *) &addr, sizeof(addr));
-  //checkNeg(ret,"connect client error");
+  checkNeg(ret,"connect client error");
   return ret;
 }
 
