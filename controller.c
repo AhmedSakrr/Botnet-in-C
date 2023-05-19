@@ -1,12 +1,18 @@
+/**
+ * AUTHORS : 
+ * NZEYIMANA Yvan
+ * OVERWEG Jef
+ * VAN MOER Bryan
+*/
 #include <string.h>
 #include <libgen.h>
 #include <fcntl.h>
 #include <ctype.h>
 #include <stdbool.h>
+#include <unistd.h>
 #include <stdio.h>
 #include <signal.h>
 #include <stdlib.h>
-
 #include "utils_v2.h"
 #include "header.h"
 #include "network.h"
@@ -22,9 +28,9 @@ volatile sig_atomic_t signalCount = 0;
 pid_t childPid;
 
 
-void handleSIGINT(int signal) {
+void handleSIGINT(int signal) { 
     signalCount = 1;
-    kill(childPid, SIGINT);  
+    skill(childPid, SIGINT);  
     exit(0);
 }
 
@@ -70,7 +76,7 @@ int main(int argc, char** argv) {
                     physicalSize += PHYSICAL_SIZE; 
                     int* newArray = (int*)realloc(arrayFd, physicalSize * sizeof(int));
                     if (newArray == NULL) {
-                        printf("Error realloc.\n");
+                        printf("Erreur realloc.\n");
                         free(arrayFd);
                         return 0;
                     }
@@ -84,10 +90,10 @@ int main(int argc, char** argv) {
         }
     }
     if(logicalSize == 0){
-        printf("No connection established \n");
+        printf("Aucune connection établie \n");
         return 0;
     }
-    printf("Number of connection established : %d\n", logicalSize);
+    printf("Nombre de connections établies: %d\n", logicalSize);
 
     ssigaction(SIGINT, handleSIGINT);
 
@@ -95,20 +101,21 @@ int main(int argc, char** argv) {
 
     /* PROGRAMME PERE */
    if (childPid > 0) {
-        printf("Enter a command :\n");
+        printf("Entrez une commande :\n");
         while (!signalCount) {
             if (fgets(command, BUFFER_SIZE, stdin) == NULL) {
-        
-                printf("CTRL-D...\n");
+                printf("Le controller s'arrête\n");
                 signalCount = 1; 
                 break;
             }
-
-            for(int i = 0 ; i < logicalSize ; i++){
-                swrite(arrayFd[i], &command, strlen(command));
+            for (int i = 0; i < nbServers; ++i)
+            {
+                for(int i = 0 ; i < logicalSize ; i++){
+                    swrite(arrayFd[i], &command, strlen(command));
+                }
             }
         }
-        kill(childPid, SIGINT); 
+        skill(childPid, SIGINT); 
     }
 
     /* Free allocated memory */
@@ -128,7 +135,7 @@ int connectToZombies(char* serverIP, int serverPort) {
     sockfd = ssocket();
 
     if(ssconnect(serverIP, serverPort, sockfd) != -1){
-         printf("Connected to server %s on port %d\n", serverIP, serverPort);
+         printf("Connecté au serveur %s sur le port %d\n", serverIP, serverPort);
          return sockfd;
     } else {
         /* Error connection server */
@@ -147,20 +154,34 @@ void listenToTheZombies(void* ptrArray, void* logicalSize) {
     bool fds_invalid[1024];
     int nbSockfd = 0;
 
-    int s = 0;
-    while(s<2){
+    //int s = 0;
+    //while(s<1){
         for (int i = 0; i < lSize; i++) {
             fds[nbSockfd].fd = arrayFd[i];
             fds[nbSockfd].events = POLLIN;
             nbSockfd++;
             fds_invalid[nbSockfd] = false;
         }
-        s++;
-    }
+        //s++;
+    //}
 
 
     while (!signalCount) {
         spoll(fds, nbSockfd, 0);
+
+        // Check if there are no active connections
+        bool allInvalid = true;
+        for (int i = 0; i < nbSockfd; i++) {
+            if (!fds_invalid[i]) {
+                allInvalid = false;
+                break;
+            }
+        }
+
+        if (allInvalid) {
+            skill(getppid(), SIGINT);  // Send signal to parent process to stop execution
+            break;
+        }
 
         for (int i = 0; i < nbSockfd; i++) {
             if (fds[i].revents & POLLIN && !fds_invalid[i]) {
@@ -170,7 +191,7 @@ void listenToTheZombies(void* ptrArray, void* logicalSize) {
                     fds_invalid[i] = true;
                     continue;
                 }
-                printf("\n%s\n", msg);
+                printf("\nMessage reçu :\n%s\n", msg);
                 memset(msg, 0, sizeof(msg));
             }
         }
