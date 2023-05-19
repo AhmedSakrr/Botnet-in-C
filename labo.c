@@ -3,12 +3,16 @@
 #include <unistd.h>
 #include <signal.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <time.h>
+
 #include "header.h"
+#include "utils_v2.h"
 
 #define NUM_ZOMBIES 2
 
 int zombies[NUM_ZOMBIES];
+int zombie_pgid;
 
 int used_ports[NUM_PORTS] = {0};
 
@@ -31,25 +35,35 @@ void launch_zombie(int index) {
         exit(EXIT_FAILURE);
     } else {
         zombies[index] = pid;
+        if (index == 0) {
+            zombie_pgid = pid;  
+        }
+        setpgid(pid, zombie_pgid);  
     }
 }
 
-
 void terminate_zombies() {
+    skill(-zombie_pgid, SIGTERM);  // Send the SIGTERM signal to the entire process group
+    int status;
     for (int i = 0; i < NUM_ZOMBIES; i++) {
         if (zombies[i] > 0) {
-            kill(zombies[i], SIGTERM);
+            waitpid(zombies[i], &status, 0);  // Wait for the zombie process to terminate
         }
     }
+}
+
+void handleSIGINT(int signal) {
+    terminate_zombies();
+    exit(0);
 }
 
 int main(int argc, char** argv) {
     for (int i = 0; i < NUM_ZOMBIES; i++) {
         launch_zombie(i);
     }
-    printf("Press Ctrl+D to terminate the program...\n");
+    ssigaction(SIGINT, handleSIGINT);
+    printf("Appuyer sur CTRL+D pour terminer le programme...\n");
     while (getchar() != EOF);
     terminate_zombies();
     return 0;
 }
-
